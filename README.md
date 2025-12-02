@@ -43,8 +43,15 @@ openssl rand -base64 32
 **วิธีได้ LINE Credentials:**
 1. ไปที่ [LINE Developers Console](https://developers.line.biz/console/)
 2. สร้าง Provider และ Channel
-3. สำหรับ LINE Login: ใช้ Channel ID และ Channel Secret
-4. สำหรับ Messaging API: ใช้ Channel Access Token
+3. **สำหรับ LINE Login (OAuth):**
+   - `LINE_CLIENT_ID` = **Channel ID** (ตัวเลข เช่น 2008608508)
+   - `LINE_CLIENT_SECRET` = **Channel Secret** (ใน Basic settings > Channel secret)
+4. **สำหรับ Messaging API (ส่งข้อความแจ้งเตือน):**
+   - `LINE_CHANNEL_ACCESS_TOKEN` = **Channel access token (long-lived)** (ใน Messaging API > Channel access token)
+
+**⚠️ สำคัญ:** Channel ID ≠ User ID
+- Channel ID คือตัวเลข (ใช้สำหรับ `LINE_CLIENT_ID`)
+- Your user ID เริ่มต้นด้วย U (ไม่ใช่ Client ID)
 
 ### 3. Setup Database
 

@@ -2,6 +2,65 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### 1. ติดตั้ง Dependencies
+
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+```
+
+### 2. ตั้งค่า Environment Variables
+
+สร้างไฟล์ `.env.local` ใน root directory และเพิ่มตัวแปรต่อไปนี้:
+
+```env
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/handshake?schema=public"
+
+# NextAuth
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-secret-key-here-generate-with-openssl-rand-base64-32"
+
+# LINE Login (OAuth)
+LINE_CLIENT_ID="your-line-client-id"
+LINE_CLIENT_SECRET="your-line-client-secret"
+
+# LINE Messaging API (สำหรับส่งข้อความแจ้งเตือน)
+LINE_CHANNEL_ACCESS_TOKEN="your-line-channel-access-token"
+
+# Node Environment
+NODE_ENV="development"
+```
+
+**วิธีสร้าง NEXTAUTH_SECRET:**
+```bash
+openssl rand -base64 32
+```
+
+**วิธีได้ LINE Credentials:**
+1. ไปที่ [LINE Developers Console](https://developers.line.biz/console/)
+2. สร้าง Provider และ Channel
+3. สำหรับ LINE Login: ใช้ Channel ID และ Channel Secret
+4. สำหรับ Messaging API: ใช้ Channel Access Token
+
+### 3. Setup Database
+
+```bash
+# Generate Drizzle migrations
+bun run db:generate
+
+# Push schema to database (for development)
+bun run db:push
+
+# Or run migrations (for production)
+bun run db:migrate
+```
+
+### 4. รัน Development Server
+
 First, run the development server:
 
 ```bash

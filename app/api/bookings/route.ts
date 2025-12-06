@@ -8,38 +8,28 @@ import { eq } from "drizzle-orm";
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   
-  if (!session || !session.user?.email) { // LINE login usually provides email or we use the ID from session callback
-      // If we customized session to have 'id', we should check that.
-      // But getServerSession might not have the custom type inferred here without the d.ts being picked up globally or imported.
-      // Let's rely on session.user existing.
+  if (!session || !session.user?.email) { 
       if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const body = await req.json();
-    const { tickets } = body; // tickets is Record<string, number>
+    const { tickets } = body; 
 
-    // We need the user's DB ID. 
-    // In our auth route, we added user.id to session.
-    const user = session.user as any;
+    const user = session.user as { id: string };
     const userId = user.id;
 
     if (!userId) {
-        // If it's a new user and we haven't synced properly, we might need to find them by email or lineId?
-        // Actually, the session callback should have populated it.
+
         return NextResponse.json({ error: "User ID not found in session" }, { status: 401 });
     }
-
-    // Transaction: Delete all existing bookings for this user and re-create them (simplest sync strategy)
-    // Or upsert. Given the structure, delete-insert is easier for full sync.
-    
+ 
     await db.transaction(async (tx) => {
       await tx.delete(bookings).where(eq(bookings.userId, userId));
 
       const bookingsToCreate = [];
       for (const [key, count] of Object.entries(tickets)) {
         if (typeof count === 'number' && count > 0) {
-             // Key format: "Name-YYYY-MM-DD-RoundID"
              const parts = key.split("-");
              const roundId = parts.pop()!;
              const day = parts.pop()!;
@@ -70,11 +60,11 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const user = session.user as any;
+    const user = session.user as { id: string };
     const userId = user.id;
 
     try {
@@ -96,3 +86,23 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
+
+export async function DELETE(_req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const user = session.user as { id: string };
+  const userId = user.id;
+
+  try {
+    await db.delete(bookings).where(eq(bookings.userId, userId));
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Delete error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+

@@ -1,7 +1,20 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, startTransition } from "react";
-import { Save, Users, Calendar, X, CheckCircle, ChevronDown, ChevronUp, List, Clock, Copy, LogIn, LogOut } from "lucide-react";
+import {
+  Save,
+  Users,
+  Calendar,
+  X,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
+  List,
+  Clock,
+  Copy,
+  LogIn,
+  LogOut,
+} from "lucide-react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { MEMBERS, TIME_SLOTS } from "@/data/member";
 import Image from "next/image";
@@ -43,29 +56,14 @@ export default function Home() {
     }
   }, [tickets, isClient]);
 
-  // Sync with DB when logged in
   useEffect(() => {
     if (session?.user) {
-      // 1. Initial load from DB if local is empty, or save local to DB if exists
-      // Actually, to avoid overwriting DB with empty local on first load if we clear local...
-      // Let's try to fetch first.
       const syncData = async () => {
-        // If we have local tickets, we might want to save them. 
-        // But if the user logs in from a new device, local is empty, we want to load.
-        // Strategy: Fetch first. If DB has data, use DB. If DB empty, save local.
-        // But if I just made a plan and logged in, I want to keep my plan.
-
-        // Let's do: Fetch DB.
         try {
           const res = await fetch("/api/bookings");
           const data = await res.json();
 
           if (data.tickets && Object.keys(data.tickets).length > 0) {
-            // DB has data.
-            // If local also has data, we might want to merge or ask. 
-            // For now, let's prefer DB data to avoid accidental overwrites, 
-            // UNLESS local data was just modified? No, this runs on session mount.
-            // Let's just setTickets to DB data.
             setTickets(data.tickets);
           } else {
             // DB is empty. If we have local data, save it.
@@ -84,8 +82,8 @@ export default function Home() {
 
       syncData();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]); // Run once when session loads (tickets intentionally omitted)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
 
   // Auto-save to DB when tickets change (debounce)
   useEffect(() => {
@@ -97,12 +95,29 @@ export default function Home() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tickets }),
-        }).catch(e => console.error("Auto-save failed", e));
+        }).catch((e) => console.error("Auto-save failed", e));
       }
     }, 2000); // 2 seconds debounce
 
     return () => clearTimeout(timer);
   }, [tickets, session, isClient]);
+
+  const handleClearTickets = async () => {
+    // 1. Clear client state
+    setTickets({});
+    localStorage.removeItem("handshake_planner_v1");
+
+    // 2. Clear DB if user is logged in
+    if (session?.user) {
+      try {
+        await fetch("/api/bookings", {
+          method: "DELETE",
+        });
+      } catch (err) {
+        console.error("DB clear failed:", err);
+      }
+    }
+  };
 
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
@@ -111,7 +126,12 @@ export default function Home() {
     setIsFilterExpanded(false);
   };
 
-  const updateTicket = (member: string, date: string, roundId: string, change: number) => {
+  const updateTicket = (
+    member: string,
+    date: string,
+    roundId: string,
+    change: number
+  ) => {
     const key = `${member}-${date}-${roundId}`;
     const current = tickets[key] || 0;
     const newValue = Math.max(0, current + change);
@@ -126,36 +146,42 @@ export default function Home() {
 
   const currentCategories = useMemo(() => {
     if (selectedDate === "2025-12-06") {
-      return ALL_CATEGORIES.filter(c => c.group === "CGM48" && ["2", "3"].includes(c.gen));
+      return ALL_CATEGORIES.filter(
+        (c) => c.group === "CGM48" && ["2", "3"].includes(c.gen)
+      );
     }
     if (selectedDate === "2025-12-07") {
-      return ALL_CATEGORIES.filter(c => c.group === "BNK48" && ["3", "5"].includes(c.gen));
+      return ALL_CATEGORIES.filter(
+        (c) => c.group === "BNK48" && ["3", "5"].includes(c.gen)
+      );
     }
     return ALL_CATEGORIES;
   }, [selectedDate]);
 
   const membersOnDate = useMemo(() => {
-    return MEMBERS.filter(m => m.dates[selectedDate]);
+    return MEMBERS.filter((m) => m.dates[selectedDate]);
   }, [selectedDate]);
 
   const membersInActiveCategory = useMemo(() => {
     if (!activeCategory) return membersOnDate;
-    const cat = ALL_CATEGORIES.find(c => c.id === activeCategory);
+    const cat = ALL_CATEGORIES.find((c) => c.id === activeCategory);
     if (!cat) return membersOnDate;
-    return membersOnDate.filter(m => m.group === cat.group && m.generation === cat.gen);
+    return membersOnDate.filter(
+      (m) => m.group === cat.group && m.generation === cat.gen
+    );
   }, [activeCategory, membersOnDate]);
 
   const displayedTableMembers = useMemo(() => {
     if (selectedMembers.length > 0) {
-      return membersOnDate.filter(m => selectedMembers.includes(m.name));
+      return membersOnDate.filter((m) => selectedMembers.includes(m.name));
     }
     return membersInActiveCategory;
   }, [selectedMembers, membersInActiveCategory, membersOnDate]);
 
   const toggleMemberSelection = (name: string) => {
-    setSelectedMembers(prev => {
+    setSelectedMembers((prev) => {
       if (prev.includes(name)) {
-        return prev.filter(n => n !== name);
+        return prev.filter((n) => n !== name);
       } else {
         return [...prev, name];
       }
@@ -197,14 +223,14 @@ export default function Home() {
       // Key format: "Name-2025-12-27-R1"
       const parts = key.split("-");
       const roundId = parts.pop()!; // ตัวสุดท้ายคือ RoundID
-      const day = parts.pop()!;     // ตัวรองสุดท้ายคือ DD
-      const month = parts.pop()!;   // MM
-      const year = parts.pop()!;    // YYYY
+      const day = parts.pop()!; // ตัวรองสุดท้ายคือ DD
+      const month = parts.pop()!; // MM
+      const year = parts.pop()!; // YYYY
       const date = `${year}-${month}-${day}`; // ประกอบวันที่คืนมา
       const name = parts.join("-"); // ที่เหลือข้างหน้าคือชื่อ (เผื่อชื่อมีขีด)
 
-      const member = MEMBERS.find(m => m.name === name);
-      const round = TIME_SLOTS[date]?.find(r => r.id === roundId);
+      const member = MEMBERS.find((m) => m.name === name);
+      const round = TIME_SLOTS[date]?.find((r) => r.id === roundId);
 
       if (member && round) {
         if (!groupedByDate[date]) groupedByDate[date] = [];
@@ -214,29 +240,33 @@ export default function Home() {
           roundLabel: round.label,
           roundTime: round.time,
           roundId: round.id,
-          count: count
+          count: count,
         });
       }
     });
 
-    Object.keys(groupedByDate).forEach(date => {
+    Object.keys(groupedByDate).forEach((date) => {
       groupedByDate[date].sort((a, b) => {
         if (a.roundId !== b.roundId) return a.roundId.localeCompare(b.roundId);
         return a.name.localeCompare(b.name);
       });
     });
 
-    return Object.keys(groupedByDate).sort().reduce((obj, key) => {
-      obj[key] = groupedByDate[key];
-      return obj;
-    }, {} as Record<string, DetailedItem[]>);
-
+    return Object.keys(groupedByDate)
+      .sort()
+      .reduce((obj, key) => {
+        obj[key] = groupedByDate[key];
+        return obj;
+      }, {} as Record<string, DetailedItem[]>);
   }, [tickets]);
 
   const copySummaryToClipboard = () => {
     let text = "📋 Handshake Plan\n";
     Object.entries(detailedSummary).forEach(([date, items]) => {
-      text += `\n📅 ${new Date(date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}\n`;
+      text += `\n📅 ${new Date(date).toLocaleDateString("th-TH", {
+        day: "numeric",
+        month: "short",
+      })}\n`;
       items.forEach((item) => {
         text += `- ${item.name} (${item.roundLabel} ${item.roundTime}): ${item.count} ใบ\n`;
       });
@@ -256,46 +286,47 @@ export default function Home() {
 
       // Request screen capture
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true
+        video: true,
       });
 
       // Create video element to capture frame
-      const video = document.createElement('video');
+      const video = document.createElement("video");
       video.srcObject = stream;
       video.play();
 
       // Wait for video to be ready
-      await new Promise(resolve => {
+      await new Promise((resolve) => {
         video.onloadedmetadata = resolve;
       });
 
       // Create canvas and capture frame
-      const canvas = document.createElement('canvas');
+      const canvas = document.createElement("canvas");
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      
+      const ctx = canvas.getContext("2d");
+
       if (ctx) {
         ctx.drawImage(video, 0, 0);
-        
+
         // Stop all tracks
-        stream.getTracks().forEach(track => track.stop());
-        
+        stream.getTracks().forEach((track) => track.stop());
+
         // Convert to blob and download
         canvas.toBlob((blob) => {
           if (blob) {
             const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.download = `handshake-plan-${new Date().toISOString().split('T')[0]}.png`;
+            const link = document.createElement("a");
+            link.download = `handshake-plan-${new Date().toISOString().split("T")[0]
+              }.png`;
             link.href = url;
             link.click();
             URL.revokeObjectURL(url);
             alert("✅ บันทึกรูปภาพสำเร็จ!");
           }
-        }, 'image/png');
+        }, "image/png");
       }
     } catch (err) {
-      if ((err as Error).name === 'NotAllowedError') {
+      if ((err as Error).name === "NotAllowedError") {
         alert("คุณยกเลิกการ capture หน้าจอ");
       } else {
         console.error("Failed to capture screen:", err);
@@ -314,47 +345,76 @@ export default function Home() {
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2">
               <Users className="w-6 h-6 sm:w-8 sm:h-8" /> Handshake Planner
             </h1>
-            <p className="opacity-90 text-xs sm:text-sm mt-1">BNK48 & CGM48 | Dec 2025 Events</p>
+            <p className="opacity-90 text-xs sm:text-sm mt-1">
+              BNK48 & CGM48 | Dec 2025 Events
+            </p>
           </div>
           <div className="w-full sm:w-auto">
             {session ? (
               <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2 sm:gap-3">
                 <div className="flex items-center gap-2 sm:gap-3">
                   <div className="flex flex-col sm:text-right">
-                    <div className="text-xs sm:text-sm font-bold truncate max-w-[120px] sm:max-w-none">{session.user?.name}</div>
-                    <div className="text-[10px] sm:text-xs opacity-80">LINE Login</div>
+                    <div className="text-xs sm:text-sm font-bold truncate max-w-[120px] sm:max-w-none">
+                      {session.user?.name}
+                    </div>
+                    <div className="text-[10px] sm:text-xs opacity-80">
+                      LINE Login
+                    </div>
                   </div>
                   {session.user?.image && (
-                    <Image src={session.user.image} alt="Profile" width={40} height={40} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white/50" />
+                    <Image
+                      src={session.user.image}
+                      alt="Profile"
+                      width={40}
+                      height={40}
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white/50"
+                    />
                   )}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={async () => {
                       try {
-                        const res = await fetch('/api/test/my-line-id');
+                        const res = await fetch("/api/test/my-line-id");
                         const data = await res.json();
                         if (data.testUrl) {
-                          if (confirm('ต้องการส่งข้อความทดสอบไปที่ LINE ของคุณหรือไม่?')) {
+                          if (
+                            confirm(
+                              "ต้องการส่งข้อความทดสอบไปที่ LINE ของคุณหรือไม่?"
+                            )
+                          ) {
                             const testRes = await fetch(data.testUrl);
                             const testData = await testRes.json();
                             if (testData.success) {
-                              alert('✅ ส่งข้อความทดสอบสำเร็จ! ตรวจสอบ LINE ของคุณ');
+                              alert(
+                                "✅ ส่งข้อความทดสอบสำเร็จ! ตรวจสอบ LINE ของคุณ"
+                              );
                             } else {
-                              alert('❌ เกิดข้อผิดพลาด: ' + (testData.error || 'Unknown'));
+                              alert(
+                                "❌ เกิดข้อผิดพลาด: " +
+                                (testData.error || "Unknown")
+                              );
                             }
                           }
                         } else {
-                          alert('❌ ไม่พบ LINE ID กรุณา logout แล้ว login ใหม่');
+                          alert(
+                            "❌ ไม่พบ LINE ID กรุณา logout แล้ว login ใหม่"
+                          );
                         }
                       } catch (error) {
-                        alert('❌ เกิดข้อผิดพลาด: ' + error);
+                        alert("❌ เกิดข้อผิดพลาด: " + error);
                       }
                     }}
                     className="bg-white/20 hover:bg-white/30 p-1.5 sm:p-2 rounded-lg transition-colors text-sm sm:text-base"
                     title="Test LINE Notification"
                   >
                     🔔
+                  </button>
+                  <button
+                    onClick={handleClearTickets}
+                    className="bg-white text-pink-600 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm hover:bg-pink-50 transition-colors flex items-center gap-2 shadow-sm w-full sm:w-auto justify-center"
+                  >
+                    Reset
                   </button>
                   <button
                     onClick={() => signOut()}
@@ -366,13 +426,21 @@ export default function Home() {
                 </div>
               </div>
             ) : (
-              <button
-                onClick={() => signIn("line")}
-                className="bg-white text-pink-600 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm hover:bg-pink-50 transition-colors flex items-center gap-2 shadow-sm w-full sm:w-auto justify-center"
-              >
-                <LogIn size={16} className="sm:w-[18px] sm:h-[18px]" />
-                <span>Login with LINE</span>
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => signIn("line")}
+                  className="bg-white text-pink-600 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm hover:bg-pink-50 transition-colors flex items-center gap-2 shadow-sm w-full sm:w-auto justify-center"
+                >
+                  <LogIn size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <span>Login with LINE</span>
+                </button>
+                <button
+                  onClick={handleClearTickets}
+                  className="bg-white text-pink-600 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm hover:bg-pink-50 transition-colors flex items-center gap-2 shadow-sm w-full sm:w-auto justify-center"
+                >
+                  Reset
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -384,13 +452,18 @@ export default function Home() {
             <div className="flex flex-col gap-3">
               <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
                 <span className="flex items-center gap-2 text-pink-700 font-semibold text-sm sm:text-base">
-                  <Calendar size={18} className="sm:w-5 sm:h-5" /> วันที่กิจกรรม:
+                  <Calendar size={18} className="sm:w-5 sm:h-5" />{" "}
+                  วันที่กิจกรรม:
                 </span>
                 <button
                   onClick={() => setIsFilterExpanded(!isFilterExpanded)}
                   className="flex items-center gap-1 text-xs sm:text-sm text-gray-500 hover:text-pink-600 font-medium transition-colors bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 ml-auto sm:ml-0"
                 >
-                  {isFilterExpanded ? <ChevronUp size={14} className="sm:w-4 sm:h-4" /> : <ChevronDown size={14} className="sm:w-4 sm:h-4" />}
+                  {isFilterExpanded ? (
+                    <ChevronUp size={14} className="sm:w-4 sm:h-4" />
+                  ) : (
+                    <ChevronDown size={14} className="sm:w-4 sm:h-4" />
+                  )}
                   <span className="hidden sm:inline">Filter Members</span>
                   <span className="sm:hidden">Filter</span>
                 </button>
@@ -401,11 +474,14 @@ export default function Home() {
                     key={date}
                     onClick={() => handleDateChange(date)}
                     className={`px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all shadow-sm ${selectedDate === date
-                      ? "bg-pink-500 text-white ring-2 ring-pink-300 ring-offset-1"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        ? "bg-pink-500 text-white ring-2 ring-pink-300 ring-offset-1"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                       }`}
                   >
-                    {new Date(date).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
+                    {new Date(date).toLocaleDateString("th-TH", {
+                      day: "numeric",
+                      month: "short",
+                    })}
                   </button>
                 ))}
               </div>
@@ -421,21 +497,24 @@ export default function Home() {
                     <button
                       onClick={() => setActiveCategory(null)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${activeCategory === null
-                        ? "bg-gray-800 text-white border-gray-800"
-                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+                          ? "bg-gray-800 text-white border-gray-800"
+                          : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
                         }`}
                     >
                       All
                     </button>
-                    {currentCategories.map(cat => (
+                    {currentCategories.map((cat) => (
                       <button
                         key={cat.id}
-                        onClick={() => { setActiveCategory(cat.id); setSelectedMembers([]); }}
+                        onClick={() => {
+                          setActiveCategory(cat.id);
+                          setSelectedMembers([]);
+                        }}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${activeCategory === cat.id
-                          ? cat.group === 'BNK48'
-                            ? "bg-violet-100 text-violet-700 border-violet-300 ring-2 ring-violet-200"
-                            : "bg-teal-100 text-teal-700 border-teal-300 ring-2 ring-teal-200"
-                          : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                            ? cat.group === "BNK48"
+                              ? "bg-violet-100 text-violet-700 border-violet-300 ring-2 ring-violet-200"
+                              : "bg-teal-100 text-teal-700 border-teal-300 ring-2 ring-teal-200"
+                            : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
                           }`}
                       >
                         {cat.label}
@@ -444,7 +523,10 @@ export default function Home() {
                   </div>
                   {(activeCategory || selectedMembers.length > 0) && (
                     <button
-                      onClick={() => { setActiveCategory(null); setSelectedMembers([]); }}
+                      onClick={() => {
+                        setActiveCategory(null);
+                        setSelectedMembers([]);
+                      }}
                       className="text-xs flex items-center gap-1 text-red-500 hover:text-red-700 font-semibold whitespace-nowrap"
                     >
                       <X size={14} /> ล้างทั้งหมด
@@ -457,7 +539,9 @@ export default function Home() {
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-xs font-bold text-gray-500 uppercase">
                     MEMBERS ({membersInActiveCategory.length})
-                    <span className="font-normal text-gray-400 ml-2 normal-case hidden sm:inline">*แตะที่รูปเพื่อเลือกดูเฉพาะคนนั้น (เลือกได้หลายคน)</span>
+                    <span className="font-normal text-gray-400 ml-2 normal-case hidden sm:inline">
+                      *แตะที่รูปเพื่อเลือกดูเฉพาะคนนั้น (เลือกได้หลายคน)
+                    </span>
                   </span>
                 </div>
                 <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
@@ -467,10 +551,17 @@ export default function Home() {
                       <button
                         key={m.name}
                         onClick={() => toggleMemberSelection(m.name)}
-                        className={`relative flex flex-col items-center group transition-all duration-200 ${isSelected ? "transform scale-105" : "hover:opacity-80"}`}
+                        className={`relative flex flex-col items-center group transition-all duration-200 ${isSelected
+                            ? "transform scale-105"
+                            : "hover:opacity-80"
+                          }`}
                       >
-                        <div className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-full p-1 transition-all ${isSelected ? "bg-gradient-to-tr from-pink-500 to-rose-400 shadow-md" : "bg-transparent"
-                          }`}>
+                        <div
+                          className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-full p-1 transition-all ${isSelected
+                              ? "bg-gradient-to-tr from-pink-500 to-rose-400 shadow-md"
+                              : "bg-transparent"
+                            }`}
+                        >
                           <Image
                             src={m.image}
                             alt={m.name}
@@ -480,19 +571,29 @@ export default function Home() {
                           />
                           {isSelected && (
                             <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
-                              <CheckCircle size={16} className="text-green-500 fill-white" />
+                              <CheckCircle
+                                size={16}
+                                className="text-green-500 fill-white"
+                              />
                             </div>
                           )}
                         </div>
-                        <span className={`mt-1.5 text-[10px] sm:text-xs text-center truncate w-full px-1 font-medium transition-colors ${isSelected ? "text-pink-600 font-bold" : "text-gray-600"}`}>
+                        <span
+                          className={`mt-1.5 text-[10px] sm:text-xs text-center truncate w-full px-1 font-medium transition-colors ${isSelected
+                              ? "text-pink-600 font-bold"
+                              : "text-gray-600"
+                            }`}
+                        >
                           {m.name}
                         </span>
                       </button>
-                    )
+                    );
                   })}
                 </div>
                 {membersInActiveCategory.length === 0 && (
-                  <div className="text-center text-gray-400 py-4 text-sm">ไม่มีรายชื่อในกลุ่มนี้สำหรับวันที่เลือก</div>
+                  <div className="text-center text-gray-400 py-4 text-sm">
+                    ไม่มีรายชื่อในกลุ่มนี้สำหรับวันที่เลือก
+                  </div>
                 )}
               </div>
             </div>
@@ -506,12 +607,21 @@ export default function Home() {
               <thead className="bg-amber-50">
                 <tr>
                   <th className="p-2 sm:p-4 text-left w-40 sm:w-56 sticky left-0 bg-amber-50 z-10 text-amber-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                    <div className="text-xs sm:text-sm font-bold">MEMBER ({displayedTableMembers.length})</div>
+                    <div className="text-xs sm:text-sm font-bold">
+                      MEMBER ({displayedTableMembers.length})
+                    </div>
                   </th>
                   {currentRounds.map((round) => (
-                    <th key={round.id} className="p-2 text-center min-w-[100px] sm:min-w-[120px]">
-                      <div className="font-bold text-pink-700 text-xs sm:text-sm">{round.label}</div>
-                      <div className="text-[10px] sm:text-[11px] text-gray-500 font-light mt-0.5">{round.time}</div>
+                    <th
+                      key={round.id}
+                      className="p-2 text-center min-w-[100px] sm:min-w-[120px]"
+                    >
+                      <div className="font-bold text-pink-700 text-xs sm:text-sm">
+                        {round.label}
+                      </div>
+                      <div className="text-[10px] sm:text-[11px] text-gray-500 font-light mt-0.5">
+                        {round.time}
+                      </div>
                       <div className="text-[9px] sm:text-[10px] text-rose-600 font-medium mt-1 bg-rose-50 px-1 sm:px-1.5 py-0.5 rounded-full inline-block border border-rose-100">
                         Close {round.closeTime}
                       </div>
@@ -521,33 +631,85 @@ export default function Home() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {displayedTableMembers.map((member) => (
-                  <tr key={member.name} className="group hover:bg-pink-50/40 transition-colors">
+                  <tr
+                    key={member.name}
+                    className="group hover:bg-pink-50/40 transition-colors"
+                  >
                     <td className="p-2 sm:p-3 sticky left-0 bg-white group-hover:bg-pink-50/40 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                       <div className="flex items-center gap-2 sm:gap-3">
-                        <Image src={member.image} alt={member.name} width={48} height={48} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border border-gray-100 shadow-sm bg-gray-100" />
-                        <span className="font-bold text-gray-800 text-sm sm:text-lg leading-tight">{member.name}</span>
+                        <Image
+                          src={member.image}
+                          alt={member.name}
+                          width={48}
+                          height={48}
+                          className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border border-gray-100 shadow-sm bg-gray-100"
+                        />
+                        <span className="font-bold text-gray-800 text-sm sm:text-lg leading-tight">
+                          {member.name}
+                        </span>
                       </div>
                     </td>
                     {currentRounds.map((round) => {
-                      const isAvailable = member.dates[selectedDate]?.[round.id];
+                      const isAvailable =
+                        member.dates[selectedDate]?.[round.id];
                       const ticketKey = `${member.name}-${selectedDate}-${round.id}`;
                       const count = tickets[ticketKey] || 0;
 
-                      if (!isAvailable) return <td key={round.id} className="bg-gray-50/50"></td>;
+                      if (!isAvailable)
+                        return (
+                          <td key={round.id} className="bg-gray-50/50"></td>
+                        );
 
                       return (
                         <td key={round.id} className="p-1 sm:p-2 align-middle">
-                          <div className={`flex flex-col items-center justify-center p-1 sm:p-1.5 rounded-xl transition-all ${count > 0 ? 'bg-pink-100 ring-1 ring-pink-200' : ''}`}>
+                          <div
+                            className={`flex flex-col items-center justify-center p-1 sm:p-1.5 rounded-xl transition-all ${count > 0
+                                ? "bg-pink-100 ring-1 ring-pink-200"
+                                : ""
+                              }`}
+                          >
                             <div className="flex items-center gap-1 sm:gap-1.5">
-                              <button onClick={() => updateTicket(member.name, selectedDate, round.id, -1)} disabled={count === 0} className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center font-bold text-sm sm:text-base transition-all ${count > 0 ? "bg-white text-pink-600 shadow-sm" : "opacity-0 pointer-events-none"}`}>-</button>
+                              <button
+                                onClick={() =>
+                                  updateTicket(
+                                    member.name,
+                                    selectedDate,
+                                    round.id,
+                                    -1
+                                  )
+                                }
+                                disabled={count === 0}
+                                className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center font-bold text-sm sm:text-base transition-all ${count > 0
+                                    ? "bg-white text-pink-600 shadow-sm"
+                                    : "opacity-0 pointer-events-none"
+                                  }`}
+                              >
+                                -
+                              </button>
 
                               {count > 0 ? (
-                                <span className="w-5 sm:w-6 text-center font-bold text-base sm:text-lg text-pink-600">{count}</span>
+                                <span className="w-5 sm:w-6 text-center font-bold text-base sm:text-lg text-pink-600">
+                                  {count}
+                                </span>
                               ) : (
-                                <span className="text-gray-300 text-base sm:text-lg">★</span>
+                                <span className="text-gray-300 text-base sm:text-lg">
+                                  ★
+                                </span>
                               )}
 
-                              <button onClick={() => updateTicket(member.name, selectedDate, round.id, 1)} className="w-6 h-6 sm:w-7 sm:h-7 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-pink-500 hover:text-white flex items-center justify-center text-sm sm:text-base shadow-sm">+</button>
+                              <button
+                                onClick={() =>
+                                  updateTicket(
+                                    member.name,
+                                    selectedDate,
+                                    round.id,
+                                    1
+                                  )
+                                }
+                                className="w-6 h-6 sm:w-7 sm:h-7 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-pink-500 hover:text-white flex items-center justify-center text-sm sm:text-base shadow-sm"
+                              >
+                                +
+                              </button>
                             </div>
                           </div>
                         </td>
@@ -557,7 +719,11 @@ export default function Home() {
                 ))}
               </tbody>
             </table>
-            {displayedTableMembers.length === 0 && <div className="py-12 text-center text-gray-400">ไม่พบรายชื่อเมมเบอร์ในกลุ่มที่เลือก</div>}
+            {displayedTableMembers.length === 0 && (
+              <div className="py-12 text-center text-gray-400">
+                ไม่พบรายชื่อเมมเบอร์ในกลุ่มที่เลือก
+              </div>
+            )}
           </div>
         </div>
       </main>
@@ -565,18 +731,30 @@ export default function Home() {
       <div className="fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur-lg border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] p-4 pb-8 md:pb-4 z-40">
         <div className="max-w-6xl mx-auto flex flex-row justify-between items-center gap-4">
           <div className="flex flex-col">
-            <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">สรุปยอดรวม</span>
+            <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">
+              สรุปยอดรวม
+            </span>
             <div className="flex items-baseline gap-3 mt-1">
-              <div className="flex items-baseline gap-1"><span className="text-3xl font-extrabold text-pink-600">{summary.total}</span><span className="text-sm text-gray-600 font-medium">ใบ</span></div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-extrabold text-pink-600">
+                  {summary.total}
+                </span>
+                <span className="text-sm text-gray-600 font-medium">ใบ</span>
+              </div>
               <div className="w-px h-6 bg-gray-200 mx-1"></div>
-              <div className="flex items-baseline gap-1"><span className="text-xl font-bold text-gray-700">{summary.members}</span><span className="text-sm text-gray-500">คน</span></div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold text-gray-700">
+                  {summary.members}
+                </span>
+                <span className="text-sm text-gray-500">คน</span>
+              </div>
             </div>
           </div>
           <div className="flex gap-2">
             {session && (
               <button
                 className="flex items-center gap-2 bg-purple-600 text-white px-3 sm:px-4 py-2 sm:py-3 rounded-xl hover:bg-purple-700 shadow-lg active:scale-95 transition-all text-sm sm:text-base"
-                onClick={() => window.location.href = '/admin/cron-setup'}
+                onClick={() => (window.location.href = "/admin/cron-setup")}
                 title="ตั้งค่าการแจ้งเตือน"
               >
                 <span className="hidden sm:inline">⏰</span>
@@ -588,7 +766,9 @@ export default function Home() {
               onClick={() => setShowSummaryModal(true)}
             >
               <List size={16} className="sm:w-[18px] sm:h-[18px]" />
-              <span className="font-semibold text-xs sm:text-base">ดูรายละเอียด</span>
+              <span className="font-semibold text-xs sm:text-base">
+                ดูรายละเอียด
+              </span>
             </button>
           </div>
         </div>
@@ -600,12 +780,18 @@ export default function Home() {
             className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
             onClick={() => setShowSummaryModal(false)}
           ></div>
-          <div id="summary-modal-content" className="relative bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
+          <div
+            id="summary-modal-content"
+            className="relative bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
+          >
             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
               <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                 <List size={20} className="text-pink-500" /> รายการที่เลือก
               </h2>
-              <button onClick={() => setShowSummaryModal(false)} className="no-capture p-1 rounded-full hover:bg-gray-200 text-gray-500">
+              <button
+                onClick={() => setShowSummaryModal(false)}
+                className="no-capture p-1 rounded-full hover:bg-gray-200 text-gray-500"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -620,24 +806,45 @@ export default function Home() {
                   <div key={date}>
                     <div className="sticky top-0 bg-white/95 backdrop-blur z-10 py-2 mb-2 border-b border-pink-100">
                       <h3 className="font-bold text-pink-700 text-sm uppercase flex items-center gap-2">
-                        <Calendar size={14} /> {new Date(date).toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        <Calendar size={14} />{" "}
+                        {new Date(date).toLocaleDateString("th-TH", {
+                          weekday: "long",
+                          day: "numeric",
+                          month: "long",
+                        })}
                       </h3>
                     </div>
                     <div className="space-y-2">
                       {items.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100"
+                        >
                           <div className="flex items-center gap-3">
-                            <Image src={item.image} alt={item.name} width={40} height={40} className="w-10 h-10 rounded-full object-cover bg-white border" />
+                            <Image
+                              src={item.image}
+                              alt={item.name}
+                              width={40}
+                              height={40}
+                              className="w-10 h-10 rounded-full object-cover bg-white border"
+                            />
                             <div>
-                              <div className="font-bold text-gray-800">{item.name}</div>
+                              <div className="font-bold text-gray-800">
+                                {item.name}
+                              </div>
                               <div className="text-xs text-gray-500 flex items-center gap-1">
-                                <Clock size={10} /> {item.roundLabel} ({item.roundTime})
+                                <Clock size={10} /> {item.roundLabel} (
+                                {item.roundTime})
                               </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
-                            <span className="text-lg font-bold text-pink-600">{item.count}</span>
-                            <span className="text-xs text-gray-400 font-medium">ใบ</span>
+                            <span className="text-lg font-bold text-pink-600">
+                              {item.count}
+                            </span>
+                            <span className="text-xs text-gray-400 font-medium">
+                              ใบ
+                            </span>
                           </div>
                         </div>
                       ))}
@@ -650,46 +857,61 @@ export default function Home() {
             <div className="p-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-xs text-gray-500 block">รวมทั้งหมด</span>
-                  <span className="text-xl font-bold text-pink-600">{summary.total} ใบ</span>
+                  <span className="text-xs text-gray-500 block">
+                    รวมทั้งหมด
+                  </span>
+                  <span className="text-xl font-bold text-pink-600">
+                    {summary.total} ใบ
+                  </span>
                 </div>
                 {session && summary.total > 0 && (
                   <button
                     onClick={async () => {
-                      if (!confirm('ส่งข้อความทดสอบไปที่ LINE ของคุณหรือไม่?\n\n(จะใช้ข้อมูลรายการแรกในสรุป)')) {
+                      if (
+                        !confirm(
+                          "ส่งข้อความทดสอบไปที่ LINE ของคุณหรือไม่?\n\n(จะใช้ข้อมูลรายการแรกในสรุป)"
+                        )
+                      ) {
                         return;
                       }
-                      
+
                       try {
                         // Get first item from summary
                         const firstDate = Object.keys(detailedSummary)[0];
                         const firstItem = detailedSummary[firstDate]?.[0];
-                        
+
                         if (!firstItem) {
-                          alert('ไม่พบข้อมูลที่จะทดสอบ');
+                          alert("ไม่พบข้อมูลที่จะทดสอบ");
                           return;
                         }
 
-                        const res = await fetch('/api/test/notify-simulation', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
+                        const res = await fetch("/api/test/notify-simulation", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({
                             memberName: firstItem.name,
                             roundLabel: firstItem.roundLabel,
                             roundTime: firstItem.roundTime,
-                            count: firstItem.count
-                          })
+                            count: firstItem.count,
+                          }),
                         });
 
                         const data = await res.json();
-                        
+
                         if (data.success) {
-                          alert('✅ ส่งข้อความทดสอบสำเร็จ!\n\nตรวจสอบ LINE ของคุณเลยครับ 📱');
+                          alert(
+                            "✅ ส่งข้อความทดสอบสำเร็จ!\n\nตรวจสอบ LINE ของคุณเลยครับ 📱"
+                          );
                         } else {
-                          alert('❌ เกิดข้อผิดพลาด:\n' + (data.error || 'Unknown error') + '\n\n' + (data.details || ''));
+                          alert(
+                            "❌ เกิดข้อผิดพลาด:\n" +
+                            (data.error || "Unknown error") +
+                            "\n\n" +
+                            (data.details || "")
+                          );
                         }
                       } catch (error) {
-                        alert('❌ เกิดข้อผิดพลาด: ' + error);
+                        alert("❌ เกิดข้อผิดพลาด: " + error);
                       }
                     }}
                     className="no-capture flex items-center gap-2 bg-green-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-green-700 text-xs sm:text-sm font-semibold shadow-sm"
@@ -698,7 +920,7 @@ export default function Home() {
                   </button>
                 )}
               </div>
-              
+
               <div className="flex gap-2 sm:gap-3 flex-wrap">
                 <button
                   onClick={copySummaryToClipboard}

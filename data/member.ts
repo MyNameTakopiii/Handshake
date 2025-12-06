@@ -1,5 +1,4 @@
 // src/data/members.ts
-
 export type TimeSlot = {
   id: string;
   label: string;

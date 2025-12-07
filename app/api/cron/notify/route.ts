@@ -31,21 +31,51 @@ export async function GET() {
 
     const slotsToday = TIME_SLOTS[currentDateStr];
     if (!slotsToday) {
-      return NextResponse.json({ message: "No events today" });
+      console.log(`[CRON] No events scheduled for ${currentDateStr}`);
+      return NextResponse.json({ 
+        message: "No events today",
+        debug: {
+          currentTime: bangkokTime.toISOString(),
+          dateChecked: currentDateStr
+        }
+      });
     }
+
+    // Use time range (14-16 minutes) instead of exact match
+    const minTarget = new Date(bangkokTime.getTime() + 14 * 60000);
+    const maxTarget = new Date(bangkokTime.getTime() + 16 * 60000);
+
+    console.log(`[CRON] Checking rounds between ${minTarget.toLocaleTimeString('th-TH')} and ${maxTarget.toLocaleTimeString('th-TH')}`);
 
     const upcomingRounds = slotsToday.filter(slot => {
       const [startTime] = slot.time.split("-"); // "12:00"
       const [startH, startM] = startTime.split(":").map(Number);
       
-      // Check if the round starts at the target time (minute precision is tricky, so checking exact match of HH:MM)
-      // Or better: check if round start time is within 15 mins from now.
-      // Let's stick to: if round start time == targetTime (HH:MM)
-      return startH === targetHour && startM === targetMinute;
+      // Create a Date object for this round's start time
+      const roundStart = new Date(bangkokTime);
+      roundStart.setHours(startH, startM, 0, 0);
+      
+      // Check if round starts within the 14-16 minute window
+      const isInWindow = roundStart >= minTarget && roundStart <= maxTarget;
+      
+      if (isInWindow) {
+        console.log(`[CRON] Found upcoming round: ${slot.label} at ${slot.time}`);
+      }
+      
+      return isInWindow;
     });
 
     if (upcomingRounds.length === 0) {
-      return NextResponse.json({ message: "No rounds starting in 15 mins" });
+      console.log(`[CRON] No rounds found in the 14-16 minute window`);
+      return NextResponse.json({ 
+        message: "No rounds starting in 15 mins",
+        debug: {
+          currentTime: bangkokTime.toISOString(),
+          windowStart: minTarget.toISOString(),
+          windowEnd: maxTarget.toISOString(),
+          totalSlotsToday: slotsToday.length
+        }
+      });
     }
 
     let sentCount = 0;
@@ -139,7 +169,16 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ success: true, sent: sentCount });
+    console.log(`[CRON] Successfully sent ${sentCount} notifications`);
+    return NextResponse.json({ 
+      success: true, 
+      sent: sentCount,
+      debug: {
+        currentTime: bangkokTime.toISOString(),
+        roundsFound: upcomingRounds.length,
+        notificationsSent: sentCount
+      }
+    });
 
   } catch (error) {
     console.error("Notification error:", error);

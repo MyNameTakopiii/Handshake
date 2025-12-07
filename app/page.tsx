@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo, startTransition } from "react";
 import {
-  Save,
   Users,
   Calendar,
   X,
@@ -14,6 +13,8 @@ import {
   Copy,
   LogIn,
   LogOut,
+  Star,
+  Info
 } from "lucide-react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { MEMBERS, TIME_SLOTS } from "@/data/member";
@@ -30,13 +31,55 @@ const ALL_CATEGORIES = [
   { id: "CGM4", label: "CGM48 Gen 4", group: "CGM48", gen: "4" },
 ];
 
+// บทพูดสำหรับ BNK48 และ CGM48
+const SCRIPTS = {
+  BNK48: [
+    {
+      id: 1,
+      text: "ทำไมนะ ทำไมเป็น [ชื่อ Member] นี่มัน Masaka no confession คำที่ [ชื่อคุณ] บอกว่าชอบฉันทำให้ป่วนปั่น สับสนไปหมดเลย~"
+    },
+    {
+      id: 2,
+      text: "ทำไม ทำไมถึงโชคดีขนาดนี้ รู้มั้ยว่าการที่ได้พบเจอ [ชื่อคุณ] คือที่สุดในใจของ [ชื่อ Member] เลยนะ!"
+    },
+    {
+      id: 3,
+      text: "[ชื่อคุณ] รู้มั้ยคะว่า ไม่ว่าเสียงรถไฟจะดังแค่ไหน ก็อยากบอกให้รู้ว่า [ชื่อ Member] รักเธอนะ"
+    },
+    {
+      id: 4,
+      text: "Happy happy birthday นี่ไงเค้กของเธอปักเทียนวันเกิด~ วันเกิดปีนี้ [ชื่อ Member] ขอให้ [ชื่อคุณ] มีความสุขมาก ๆ ยิ้มเยอะ ๆ อยู่ด้วยกันไปนาน ๆ เลยนะคะ!"
+    }
+  ],
+  CGM48: [
+    {
+      id: 1,
+      text: "ได้สิได้ไหมทอ ถักความรักให้ไกลสุดไกล [ชื่อคุณ] รักแค่น้อง [ชื่อ Member] ได้ไหมคะ"
+    },
+    {
+      id: 2,
+      text: "I love you! Baby! Baby! ช่วยหันมามอง [ชื่อ Member] กันสักที สายตาคู่นั้นที่ [ชื่อคุณ] กำลังจ้องมองใครกันอยู่"
+    },
+    {
+      id: 3,
+      text: "[ชื่อ Member] ถูกเรียกว่าเป็นคนขี้แพ้มาโดยตลอด [ชื่อ Member] เองก็คิดว่าตัวเองเป็นคนขี้แพ้มาตลอดเหมือนกัน เพราะว่า [ชื่อ Member] แพ้รัก [ชื่อคุณ] ยังไงล่ะ!"
+    },
+    {
+      id: 4,
+      text: "Happy Birthday นะ [ชื่อคุณ] ขอให้สุขภาพร่างกายแข็งแรง รายล้อมไปด้วยความรักจาก [ชื่อ Member] มีความสุขแบบนี้ไปทุก ๆ ปีนะคะ"
+    }
+  ]
+};
+
 export default function Home() {
-  const [selectedDate, setSelectedDate] = useState("2025-12-27");
+  const [selectedDate, setSelectedDate] = useState("2025-12-06");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
 
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [showScriptModal, setShowScriptModal] = useState(false);
+  const [scriptGroup, setScriptGroup] = useState<"BNK48" | "CGM48">("BNK48");
 
   const [isClient, setIsClient] = useState(false);
   const [tickets, setTickets] = useState<Record<string, number>>({});
@@ -56,6 +99,8 @@ export default function Home() {
     }
   }, [tickets, isClient]);
 
+
+
   useEffect(() => {
     if (session?.user) {
       const syncData = async () => {
@@ -66,7 +111,6 @@ export default function Home() {
           if (data.tickets && Object.keys(data.tickets).length > 0) {
             setTickets(data.tickets);
           } else {
-            // DB is empty. If we have local data, save it.
             if (Object.keys(tickets).length > 0) {
               await fetch("/api/bookings", {
                 method: "POST",
@@ -78,7 +122,7 @@ export default function Home() {
         } catch (e) {
           console.error("Sync failed", e);
         }
-      };
+      }
 
       syncData();
     }
@@ -97,7 +141,7 @@ export default function Home() {
           body: JSON.stringify({ tickets }),
         }).catch((e) => console.error("Auto-save failed", e));
       }
-    }, 2000); // 2 seconds debounce
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, [tickets, session, isClient]);
@@ -122,7 +166,10 @@ export default function Home() {
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
     setActiveCategory(null);
-    setSelectedMembers([]);
+    // setSelectedMembers([]); // ❌ จุดแก้ที่ 1: ลบการล้างค่าออก เพื่อให้จำข้ามวัน (หรือจะเปิดไว้ก็ได้ถ้าต้องการล้างเมื่อเปลี่ยนวัน)
+    // แต่ถ้าอยากให้จำค่าเมื่อเปลี่ยนวัน ต้อง comment บรรทัดบนไว้ครับ
+    // ถ้าอยากให้เปลี่ยนวันแล้วเริ่มใหม่ ให้เอา comment ออกครับ
+    // กรณีนี้ผมขอเปิด comment ไว้ก่อนตาม requirement ทั่วไปของการวางแผนข้ามวัน
     setIsFilterExpanded(false);
   };
 
@@ -172,9 +219,16 @@ export default function Home() {
   }, [activeCategory, membersOnDate]);
 
   const displayedTableMembers = useMemo(() => {
+    // ✅ จุดแก้ที่ 2: ปรับ Logic การแสดงผล
+    // ถ้าเลือก Category อยู่ ให้โชว์ทุกคนใน Category นั้น (เพื่อให้เลือกเพิ่มได้)
+    // if (activeCategory) {
+    //   return membersInActiveCategory;
+    // }
+    // ถ้าดูรวม (All) และมีคนที่เลือกไว้ ให้โชว์เฉพาะคนที่เลือก (My Selection View)
     if (selectedMembers.length > 0) {
       return membersOnDate.filter((m) => selectedMembers.includes(m.name));
     }
+    // ถ้าไม่มีอะไรเลย โชว์ทั้งหมด
     return membersInActiveCategory;
   }, [selectedMembers, membersInActiveCategory, membersOnDate]);
 
@@ -195,9 +249,6 @@ export default function Home() {
     const memberSet = new Set<string>();
     Object.entries(tickets).forEach(([key, count]) => {
       totalTickets += count;
-      // การดึงชื่อเมมเบอร์จาก Key ต้องระวังเรื่องขีด - ในวันที่
-      // Key format: Name-YYYY-MM-DD-RoundID
-      // วิธีที่ปลอดภัยคือตัดส่วนท้ายออก 4 ส่วน (Round, DD, MM, YYYY) ที่เหลือคือชื่อ
       const parts = key.split("-");
       const name = parts.slice(0, parts.length - 4).join("-");
       memberSet.add(name);
@@ -205,7 +256,20 @@ export default function Home() {
     return { total: totalTickets, members: memberSet.size };
   }, [tickets]);
 
-  // --- 🛠️ แก้ไข Logic จัดกลุ่มข้อมูล (Fix Detail Summary) ---
+  // Calculate loops per member: 5 ใบ = 1 รอบ (excluding Special rounds)
+  const getMemberLoops = (memberName: string) => {
+    let total = 0;
+    Object.entries(tickets).forEach(([key, count]) => {
+      const parts = key.split("-");
+      const roundId = parts[parts.length - 1];
+      const name = parts.slice(0, parts.length - 4).join("-");
+      if (name === memberName && roundId !== "SP") {
+        total += count;
+      }
+    });
+    return total <= 0 ? 0 : Math.ceil(total / 5);
+  };
+
   type DetailedItem = {
     name: string;
     image: string;
@@ -219,15 +283,13 @@ export default function Home() {
     const groupedByDate: Record<string, DetailedItem[]> = {};
 
     Object.entries(tickets).forEach(([key, count]) => {
-      // แก้ไขการแยก Key: เนื่องจาก Date มีขีด (-) เราจึงใช้ split ธรรมดาไม่ได้
-      // Key format: "Name-2025-12-27-R1"
       const parts = key.split("-");
-      const roundId = parts.pop()!; // ตัวสุดท้ายคือ RoundID
-      const day = parts.pop()!; // ตัวรองสุดท้ายคือ DD
-      const month = parts.pop()!; // MM
-      const year = parts.pop()!; // YYYY
-      const date = `${year}-${month}-${day}`; // ประกอบวันที่คืนมา
-      const name = parts.join("-"); // ที่เหลือข้างหน้าคือชื่อ (เผื่อชื่อมีขีด)
+      const roundId = parts.pop()!;
+      const day = parts.pop()!;
+      const month = parts.pop()!;
+      const year = parts.pop()!;
+      const date = `${year}-${month}-${day}`;
+      const name = parts.join("-");
 
       const member = MEMBERS.find((m) => m.name === name);
       const round = TIME_SLOTS[date]?.find((r) => r.id === roundId);
@@ -280,15 +342,14 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-pink-50 pb-32 font-sans text-slate-800">
-      <header className="bg-gradient-to-r from-pink-500 to-rose-400 text-white p-4 sm:p-6 shadow-lg sticky top-0 z-50">
+      <header className="bg-linear-to-r from-pink-500 to-rose-400 text-white p-4 sm:p-6 shadow-lg sticky top-0 z-50">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row gap-4 sm:gap-0 justify-between items-start sm:items-center">
           <div>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2">
               <Users className="w-6 h-6 sm:w-8 sm:h-8" /> Handshake Planner
             </h1>
-            <p className="opacity-90 text-xs sm:text-sm mt-1">
-              BNK48 & CGM48 | Dec 2025 Events
-            </p>
+            <p className="opacity-90 text-xs sm:text-sm mt-1">BNK48 & CGM48 | Dec 2025 Events</p>
+            <p className="opacity-90 text-xs sm:text-sm mt-1">Masaka no confession & ได้ด้ายไหม</p>
           </div>
           <div className="w-full sm:w-auto">
             {session ? (
@@ -313,44 +374,6 @@ export default function Home() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={async () => {
-                      try {
-                        const res = await fetch("/api/test/my-line-id");
-                        const data = await res.json();
-                        if (data.testUrl) {
-                          if (
-                            confirm(
-                              "ต้องการส่งข้อความทดสอบไปที่ LINE ของคุณหรือไม่?"
-                            )
-                          ) {
-                            const testRes = await fetch(data.testUrl);
-                            const testData = await testRes.json();
-                            if (testData.success) {
-                              alert(
-                                "✅ ส่งข้อความทดสอบสำเร็จ! ตรวจสอบ LINE ของคุณ"
-                              );
-                            } else {
-                              alert(
-                                "❌ เกิดข้อผิดพลาด: " +
-                                (testData.error || "Unknown")
-                              );
-                            }
-                          }
-                        } else {
-                          alert(
-                            "❌ ไม่พบ LINE ID กรุณา logout แล้ว login ใหม่"
-                          );
-                        }
-                      } catch (error) {
-                        alert("❌ เกิดข้อผิดพลาด: " + error);
-                      }
-                    }}
-                    className="bg-white/20 hover:bg-white/30 p-1.5 sm:p-2 rounded-lg transition-colors text-sm sm:text-base"
-                    title="Test LINE Notification"
-                  >
-                    🔔
-                  </button>
                   <button
                     onClick={handleClearTickets}
                     className="bg-white text-pink-600 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm hover:bg-pink-50 transition-colors flex items-center gap-2 shadow-sm w-full sm:w-auto justify-center"
@@ -379,7 +402,7 @@ export default function Home() {
                   onClick={handleClearTickets}
                   className="bg-white text-pink-600 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm hover:bg-pink-50 transition-colors flex items-center gap-2 shadow-sm w-full sm:w-auto justify-center"
                 >
-                  Reset
+                  ล้างทั้งหมด
                 </button>
               </div>
             )}
@@ -415,8 +438,8 @@ export default function Home() {
                     key={date}
                     onClick={() => handleDateChange(date)}
                     className={`px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all shadow-sm ${selectedDate === date
-                        ? "bg-pink-500 text-white ring-2 ring-pink-300 ring-offset-1"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      ? "bg-pink-500 text-white ring-2 ring-pink-300 ring-offset-1"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                       }`}
                   >
                     {new Date(date).toLocaleDateString("th-TH", {
@@ -425,6 +448,28 @@ export default function Home() {
                     })}
                   </button>
                 ))}
+              </div>
+
+              {/* Script Buttons */}
+              <div className="flex flex-wrap gap-2 mt-2">
+                <button
+                  onClick={() => {
+                    setScriptGroup("BNK48");
+                    setShowScriptModal(true);
+                  }}
+                  className="flex items-center gap-2 bg-gradient-to-r from-pink-500 to-rose-400 text-white px-4 py-2 rounded-lg hover:from-pink-600 hover:to-rose-500 transition-all shadow-sm text-xs sm:text-sm font-semibold"
+                >
+                  ดูบทพูด BNK48
+                </button>
+                <button
+                  onClick={() => {
+                    setScriptGroup("CGM48");
+                    setShowScriptModal(true);
+                  }}
+                  className="flex items-center gap-2 bg-gradient-to-r from-teal-400 to-emerald-400 text-white px-4 py-2 rounded-lg hover:from-teal-500 hover:to-emerald-500 transition-all shadow-sm text-xs sm:text-sm font-semibold"
+                >
+                  ดูบทพูด CGM48
+                </button>
               </div>
             </div>
           </div>
@@ -438,8 +483,8 @@ export default function Home() {
                     <button
                       onClick={() => setActiveCategory(null)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${activeCategory === null
-                          ? "bg-gray-800 text-white border-gray-800"
-                          : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+                        ? "bg-gray-800 text-white border-gray-800"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
                         }`}
                     >
                       All
@@ -447,15 +492,13 @@ export default function Home() {
                     {currentCategories.map((cat) => (
                       <button
                         key={cat.id}
-                        onClick={() => {
-                          setActiveCategory(cat.id);
-                          setSelectedMembers([]);
-                        }}
+                        // ✅ จุดแก้ที่ 1: เอา setSelectedMembers([]) ออกจากตรงนี้
+                        onClick={() => { setActiveCategory(cat.id); }}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${activeCategory === cat.id
-                            ? cat.group === "BNK48"
-                              ? "bg-violet-100 text-violet-700 border-violet-300 ring-2 ring-violet-200"
-                              : "bg-teal-100 text-teal-700 border-teal-300 ring-2 ring-teal-200"
-                            : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                          ? cat.group === "BNK48"
+                            ? "bg-violet-100 text-violet-700 border-violet-300 ring-2 ring-violet-200"
+                            : "bg-teal-100 text-teal-700 border-teal-300 ring-2 ring-teal-200"
+                          : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
                           }`}
                       >
                         {cat.label}
@@ -470,7 +513,7 @@ export default function Home() {
                       }}
                       className="text-xs flex items-center gap-1 text-red-500 hover:text-red-700 font-semibold whitespace-nowrap"
                     >
-                      <X size={14} /> ล้างทั้งหมด
+                      <X size={14} /> ล้าง Filter
                     </button>
                   )}
                 </div>
@@ -493,23 +536,13 @@ export default function Home() {
                         key={m.name}
                         onClick={() => toggleMemberSelection(m.name)}
                         className={`relative flex flex-col items-center group transition-all duration-200 ${isSelected
-                            ? "transform scale-105"
-                            : "hover:opacity-80"
+                          ? "transform scale-105"
+                          : "hover:opacity-80"
                           }`}
                       >
-                        <div
-                          className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-full p-1 transition-all ${isSelected
-                              ? "bg-gradient-to-tr from-pink-500 to-rose-400 shadow-md"
-                              : "bg-transparent"
-                            }`}
-                        >
-                          <Image
-                            src={m.image}
-                            alt={m.name}
-                            width={64}
-                            height={64}
-                            className="w-full h-full rounded-full object-cover bg-white border-2 border-white"
-                          />
+                        <div className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-full p-1 transition-all ${isSelected ? "bg-linear-to-tr from-pink-500 to-rose-400 shadow-md" : "bg-transparent"
+                          }`}>
+                          <Image src={m.image} alt={m.name} width={64} height={64} className="w-full h-full rounded-full object-cover bg-white border-2 border-white" />
                           {isSelected && (
                             <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
                               <CheckCircle
@@ -521,8 +554,8 @@ export default function Home() {
                         </div>
                         <span
                           className={`mt-1.5 text-[10px] sm:text-xs text-center truncate w-full px-1 font-medium transition-colors ${isSelected
-                              ? "text-pink-600 font-bold"
-                              : "text-gray-600"
+                            ? "text-pink-600 font-bold"
+                            : "text-gray-600"
                             }`}
                         >
                           {m.name}
@@ -553,16 +586,11 @@ export default function Home() {
                     </div>
                   </th>
                   {currentRounds.map((round) => (
-                    <th
-                      key={round.id}
-                      className="p-2 text-center min-w-[100px] sm:min-w-[120px]"
-                    >
-                      <div className="font-bold text-pink-700 text-xs sm:text-sm">
+                    <th key={round.id} className="p-2 text-center min-w-[100px] sm:min-w-[120px]">
+                      <div className={`font-bold text-xs sm:text-sm ${round.id === 'SP' ? 'text-red-600' : 'text-gray-800'}`}>
                         {round.label}
                       </div>
-                      <div className="text-[10px] sm:text-[11px] text-gray-500 font-light mt-0.5">
-                        {round.time}
-                      </div>
+                      <div className="text-[10px] sm:text-[11px] text-gray-500 font-light mt-0.5">{round.time}</div>
                       <div className="text-[9px] sm:text-[10px] text-rose-600 font-medium mt-1 bg-rose-50 px-1 sm:px-1.5 py-0.5 rounded-full inline-block border border-rose-100">
                         Close {round.closeTime}
                       </div>
@@ -603,55 +631,36 @@ export default function Home() {
 
                       return (
                         <td key={round.id} className="p-1 sm:p-2 align-middle">
-                          <div
-                            className={`flex flex-col items-center justify-center p-1 sm:p-1.5 rounded-xl transition-all ${count > 0
-                                ? "bg-pink-100 ring-1 ring-pink-200"
-                                : ""
-                              }`}
-                          >
-                            <div className="flex items-center gap-1 sm:gap-1.5">
-                              <button
-                                onClick={() =>
-                                  updateTicket(
-                                    member.name,
-                                    selectedDate,
-                                    round.id,
-                                    -1
-                                  )
-                                }
-                                disabled={count === 0}
-                                className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center font-bold text-sm sm:text-base transition-all ${count > 0
-                                    ? "bg-white text-pink-600 shadow-sm"
-                                    : "opacity-0 pointer-events-none"
-                                  }`}
-                              >
-                                -
-                              </button>
-
+                          <div className={`flex flex-col items-center justify-center p-1 sm:p-1.5 rounded-xl transition-all ${count > 0 ? 'bg-pink-100 ring-1 ring-pink-200' : ''}`}>
+                            {typeof isAvailable === 'string' && (
+                              <div className="text-[10px] sm:text-xs font-bold text-slate-700 uppercase mb-1 tracking-tight">
+                                {isAvailable === "100" ? "100" : `LANE ${isAvailable}`}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-center gap-1 sm:gap-1.5 h-7">
                               {count > 0 ? (
-                                <span className="w-5 sm:w-6 text-center font-bold text-base sm:text-lg text-pink-600">
-                                  {count}
-                                </span>
+                                <>
+                                  <button onClick={() => updateTicket(member.name, selectedDate, round.id, -1)} className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center font-bold text-sm sm:text-base bg-white text-pink-600 shadow-sm hover:bg-pink-50 transition-colors">-</button>
+                                  <span className="w-5 sm:w-6 text-center font-bold text-base sm:text-lg text-pink-600 leading-none">{count}</span>
+                                  <button onClick={() => updateTicket(member.name, selectedDate, round.id, 1)} className="w-6 h-6 sm:w-7 sm:h-7 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-pink-500 hover:text-white flex items-center justify-center text-sm sm:text-base shadow-sm transition-colors">+</button>
+                                </>
                               ) : (
-                                <span className="text-gray-300 text-base sm:text-lg">
-                                  ★
-                                </span>
+                                typeof isAvailable === 'string' ? (
+                                  <button onClick={() => updateTicket(member.name, selectedDate, round.id, 1)} className="w-6 h-6 sm:w-7 sm:h-7 bg-gray-100 text-gray-400 rounded-lg hover:bg-pink-500 hover:text-white flex items-center justify-center text-sm sm:text-base shadow-sm transition-colors">+</button>
+                                ) : (
+                                  <>
+                                    <div className="w-6 h-6 sm:w-7 sm:h-7"></div>
+                                    <span className="text-gray-300 text-base sm:text-lg flex items-center justify-center"><Star className="text-gray-300 fill-gray-300 mt-0.5" size={18} /></span>
+                                    <button onClick={() => updateTicket(member.name, selectedDate, round.id, 1)} className="w-6 h-6 sm:w-7 sm:h-7 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-pink-500 hover:text-white flex items-center justify-center text-sm sm:text-base shadow-sm transition-colors">+</button>
+                                  </>
+                                )
                               )}
-
-                              <button
-                                onClick={() =>
-                                  updateTicket(
-                                    member.name,
-                                    selectedDate,
-                                    round.id,
-                                    1
-                                  )
-                                }
-                                className="w-6 h-6 sm:w-7 sm:h-7 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-pink-500 hover:text-white flex items-center justify-center text-sm sm:text-base shadow-sm"
-                              >
-                                +
-                              </button>
                             </div>
+                            {round.id !== 'SP' && count > 0 && (
+                              <div className="text-[9px] text-gray-400 mt-1">
+                                {Math.ceil(count / 5)} รอบ
+                              </div>
+                            )}
                           </div>
                         </td>
                       );
@@ -665,6 +674,39 @@ export default function Home() {
                 ไม่พบรายชื่อเมมเบอร์ในกลุ่มที่เลือก
               </div>
             )}
+          </div>
+        </div>
+
+        <div className="mt-4 bg-amber-50 border border-amber-100 rounded-xl p-4 sm:p-5 text-sm text-amber-900 shadow-sm">
+          <div className="text-center font-medium mb-4 pb-4 border-b border-amber-200 flex justify-center items-center gap-2 text-xs sm:text-sm">
+            <Info size={16} />
+            *รอบจับมืออาจมีการเปลี่ยนแปลงในภายหลังตามความเหมาะสม โดยจะประกาศให้ทราบอีกครั้ง
+          </div>
+          <div className="flex flex-col md:flex-row justify-between gap-6">
+            <div className="flex-1">
+              <h3 className="font-bold text-base sm:text-lg mb-2 text-amber-950">Digital Event Ticket</h3>
+              <p className="text-amber-800 leading-relaxed text-xs sm:text-sm">
+                ใช้ BNK48 20th Single <span className="font-semibold">&quot;Masaka no Confession&quot;</span> <br />
+                หรือ CGM48 10th Single <span className="font-semibold">&quot;ได้ (ด้าย) ไหม&quot;</span> <br />
+                ในการเข้าร่วมกิจกรรม
+              </p>
+            </div>
+            <div className="flex-1 space-y-3">
+              <div className="flex items-start gap-3 bg-white/50 p-2 rounded-lg">
+                <div className="text-gray-600 fill-gray-600 mt-0.5 shrink-0" />
+                <div>
+                  <span className="font-bold block text-gray-700 text-xs sm:text-sm">Round 1-5 | 1 - 5 ใบ</span>
+                  <span className="text-gray-600 text-[10px] sm:text-xs">ร่วมกิจกรรม 1-SHOT VIDEO SHOOTING ได้</span>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 bg-white/50 p-2 rounded-lg">
+                <div className="text-orange-500 fill-orange-500 mt-0.5 shrink-0" />
+                <div>
+                  <span className="font-bold block text-red-600 text-xs sm:text-sm">Special | 1 - 100 ใบ</span>
+                  <span className="text-red-600 text-[10px] sm:text-xs">ร่วมกิจกรรมจับมือได้เท่านั้น (ร่วมกิจกรรมได้เพียงวันละ 1 เมมเบอร์เท่านั้น)</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </main>
@@ -691,30 +733,26 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
-            <button
-              className="flex items-center gap-2 bg-gray-900 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl hover:bg-gray-800 shadow-lg active:scale-95 transition-all text-sm sm:text-base"
-              onClick={() => setShowSummaryModal(true)}
-            >
-              <List size={16} className="sm:w-[18px] sm:h-[18px]" />
-              <span className="font-semibold text-xs sm:text-base">
-                ดูรายละเอียด
-              </span>
-            </button>
+          <div className="flex items-center gap-4">
+            <div className="flex gap-2">
+              <button
+                className="flex items-center gap-2 bg-gray-900 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl hover:bg-gray-800 shadow-lg active:scale-95 transition-all text-sm sm:text-base"
+                onClick={() => setShowSummaryModal(true)}
+              >
+                <List size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span className="font-semibold text-xs sm:text-base">
+                  ดูรายละเอียด
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {showSummaryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
-            onClick={() => setShowSummaryModal(false)}
-          ></div>
-          <div
-            id="summary-modal-content"
-            className="relative bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
-          >
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onClick={() => setShowSummaryModal(false)}></div>
+          <div className="relative bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
               <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                 <List size={20} className="text-pink-500" /> รายการที่เลือก
@@ -726,7 +764,6 @@ export default function Home() {
                 <X size={20} />
               </button>
             </div>
-
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
               {Object.keys(detailedSummary).length === 0 ? (
                 <div className="text-center py-10 text-gray-400">
@@ -784,7 +821,6 @@ export default function Home() {
                 ))
               )}
             </div>
-
             <div className="p-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl space-y-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -800,19 +836,16 @@ export default function Home() {
                     onClick={async () => {
                       if (
                         !confirm(
-                          "ส่งข้อความทดสอบไปที่ LINE ของคุณหรือไม่?\n\n(จะใช้ข้อมูลรายการแรกในสรุป)"
+                          "ส่งรายละเอียดทั้งหมดไปที่ LINE ของคุณหรือไม่?\n\n(จะส่งรายการที่เลือกไว้ทั้งหมด)"
                         )
                       ) {
                         return;
                       }
 
                       try {
-                        // Get first item from summary
-                        const firstDate = Object.keys(detailedSummary)[0];
-                        const firstItem = detailedSummary[firstDate]?.[0];
-
-                        if (!firstItem) {
-                          alert("ไม่พบข้อมูลที่จะทดสอบ");
+                        // Check if there are any items
+                        if (Object.keys(detailedSummary).length === 0) {
+                          alert("ไม่มีรายการที่จะส่ง");
                           return;
                         }
 
@@ -820,10 +853,7 @@ export default function Home() {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({
-                            memberName: firstItem.name,
-                            roundLabel: firstItem.roundLabel,
-                            roundTime: firstItem.roundTime,
-                            count: firstItem.count,
+                            summary: detailedSummary,
                           }),
                         });
 
@@ -831,37 +861,125 @@ export default function Home() {
 
                         if (data.success) {
                           alert(
-                            "✅ ส่งข้อความทดสอบสำเร็จ!\n\nตรวจสอบ LINE ของคุณเลยครับ 📱"
+                            "ส่งรายละเอียดสำเร็จ!\n\nตรวจสอบ LINE ของคุณเลยครับ"
                           );
                         } else {
                           alert(
-                            "❌ เกิดข้อผิดพลาด:\n" +
+                            "เกิดข้อผิดพลาด:\n" +
                             (data.error || "Unknown error") +
                             "\n\n" +
                             (data.details || "")
                           );
                         }
                       } catch (error) {
-                        alert("❌ เกิดข้อผิดพลาด: " + error);
+                        alert("เกิดข้อผิดพลาด: " + error);
                       }
                     }}
                     className="no-capture flex items-center gap-2 bg-green-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-green-700 text-xs sm:text-sm font-semibold shadow-sm"
                   >
-                    🔔 ทดสอบแจ้งเตือน
+                    ส่งไปที่ LINE
                   </button>
                 )}
               </div>
 
               <div className="flex gap-2 sm:gap-3 flex-wrap">
-                <button
-                  onClick={copySummaryToClipboard}
-                  className="no-capture flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 px-3 sm:px-4 py-2 rounded-lg hover:bg-gray-100 text-xs sm:text-sm font-semibold shadow-sm"
-                >
+                <button onClick={copySummaryToClipboard} className="no-capture flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 px-3 sm:px-4 py-2 rounded-lg hover:bg-gray-100 text-xs sm:text-sm font-semibold shadow-sm">
                   <Copy size={14} className="sm:w-4 sm:h-4" /> คัดลอก
                 </button>
                 <button
                   onClick={() => setShowSummaryModal(false)}
                   className="no-capture flex-1 sm:flex-none bg-gray-900 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-gray-800 text-xs sm:text-sm font-bold shadow-md"
+                >
+                  ปิด
+                </button>
+              </div>
+
+              {/* QR Code Section */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="flex flex-col items-center gap-3 bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl border border-green-100">
+                  <div className="text-center">
+                    <h3 className="text-sm font-bold text-gray-800 mb-1">
+                      แอด LINE เพื่อดูข้อมูลสรุปที่คุณเลือก
+                    </h3>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl shadow-md border-2 border-green-200">
+                    <Image
+                      src="/QRCode.png"
+                      alt="LINE QR Code"
+                      width={180}
+                      height={180}
+                      className="w-40 h-40 sm:w-44 sm:h-44"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Script Modal */}
+      {showScriptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onClick={() => setShowScriptModal(false)}></div>
+          <div className="relative bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className={`p-4 border-b ${scriptGroup === "BNK48" ? "bg-gradient-to-r from-pink-50 to-rose-50 border-pink-100" : "bg-gradient-to-r from-teal-50 to-emerald-50 border-teal-100"} rounded-t-2xl`}>
+              <div className="flex justify-between items-center">
+                <h2 className={`text-lg font-bold ${scriptGroup === "BNK48" ? "text-pink-700" : "text-teal-700"} flex items-center gap-2`}>
+                  บทพูด {scriptGroup}
+                  <span className="text-xs font-normal opacity-75">({SCRIPTS[scriptGroup].length} บท)</span>
+                </h2>
+                <button
+                  onClick={() => setShowScriptModal(false)}
+                  className="p-1 rounded-full hover:bg-white/50 text-gray-500 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {SCRIPTS[scriptGroup].map((script) => (
+                <div
+                  key={script.id}
+                  className={`p-4 rounded-xl border-2 transition-all hover:shadow-md ${scriptGroup === "BNK48"
+                    ? "bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200 hover:border-pink-300"
+                    : "bg-gradient-to-br from-teal-50 to-emerald-50 border-teal-200 hover:border-teal-300"
+                    }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-sm ${scriptGroup === "BNK48"
+                      ? "bg-gradient-to-br from-pink-500 to-rose-500"
+                      : "bg-gradient-to-br from-teal-500 to-emerald-500"
+                      }`}>
+                      {script.id}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm sm:text-base leading-relaxed ${scriptGroup === "BNK48" ? "text-gray-800" : "text-gray-800"
+                        }`}>
+                        {script.text}
+                      </p>
+                      <div className="mt-3 pt-3 border-t border-gray-200/50 flex gap-2 text-xs text-gray-500">
+                        <span className="bg-white/60 px-2 py-1 rounded">[ชื่อคุณ] = ชื่อของคุณ</span>
+                        <span className="bg-white/60 px-2 py-1 rounded">[ชื่อ Member] = ชื่อเมมเบอร์</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className={`p-4 border-t ${scriptGroup === "BNK48" ? "bg-pink-50 border-pink-100" : "bg-teal-50 border-teal-100"} rounded-b-2xl`}>
+              <div className="flex gap-2 justify-between items-center flex-wrap">
+                <div className="text-xs text-gray-600">
+                  <span className="font-semibold">คำแนะนำ:</span> สามารถใช้บทพูดเหล่านี้เป็นแนวทางในการสนทนากับเมมเบอร์ได้
+                </div>
+                <button
+                  onClick={() => setShowScriptModal(false)}
+                  className={`px-6 py-2 rounded-lg font-bold text-white shadow-md transition-all hover:scale-105 ${scriptGroup === "BNK48"
+                    ? "bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
+                    : "bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600"
+                    }`}
                 >
                   ปิด
                 </button>
@@ -873,3 +991,4 @@ export default function Home() {
     </div>
   );
 }
+

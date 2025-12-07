@@ -34,32 +34,47 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Get test data from request body
+    // Get summary data from request body
     const body = await request.json();
-    const { memberName, roundLabel, roundTime, count } = body;
+    const { summary } = body;
 
     // Validate required fields
-    if (!memberName || !roundLabel || !roundTime || !count) {
+    if (!summary || typeof summary !== 'object') {
       return NextResponse.json({ 
-        error: "Missing required fields: memberName, roundLabel, roundTime, count" 
+        error: "Missing required field: summary" 
       }, { status: 400 });
     }
 
-    // Send notification via LINE Messaging API
-    const message = `🔔 แจ้งเตือนทดสอบ
-
-⏰ ${roundLabel} กำลังจะเริ่มใน 15 นาที!
-
-📝 รายละเอียด:
-• เมมเบอร์: ${memberName}
-• เวลา: ${roundTime}
-• จำนวน: ${count} ใบ
-
-🏃‍♂️ รีบไปเข้าแถวนะครับ!
-
----
-✨ นี่คือการทดสอบระบบแจ้งเตือน
-เมื่อถึงเวลาจริง คุณจะได้รับข้อความแบบนี้อัตโนมัติ`;
+    // Build detailed message from summary
+    let message = `📝 รายละเอียดที่คุณเลือก\n`;
+    
+    // Group by date
+    Object.entries(summary).forEach(([date, items]: [string, any]) => {
+      const dateObj = new Date(date);
+      const thaiDate = dateObj.toLocaleDateString('th-TH', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      });
+      
+      message += `\n� ${thaiDate}\n`;
+      
+      items.forEach((item: any) => {
+        message += `\n👤 ${item.name}\n`;
+        message += `   ⏰ ${item.roundLabel} (${item.roundTime})\n`;
+        message += `   🎫 ${item.count} ใบ\n`;
+      });
+    });
+    
+    // Add total count
+    let totalTickets = 0;
+    Object.values(summary).forEach((items: any) => {
+      items.forEach((item: any) => {
+        totalTickets += item.count;
+      });
+    });
+    
+    message += `\n━━━━━━━━━━━━━\n📊 รวมทั้งหมด: ${totalTickets} ใบ`;
 
     await client.pushMessage({
       to: user.lineId,

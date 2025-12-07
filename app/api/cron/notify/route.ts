@@ -41,9 +41,10 @@ export async function GET() {
       });
     }
 
-    // Use time range (14-16 minutes) instead of exact match
-    const minTarget = new Date(bangkokTime.getTime() + 14 * 60000);
-    const maxTarget = new Date(bangkokTime.getTime() + 16 * 60000);
+    // Use time range (5-20 minutes) for notification window
+    // This wider window ensures we don't miss notifications even if cron runs at different times
+    const minTarget = new Date(bangkokTime.getTime() + 5 * 60000);
+    const maxTarget = new Date(bangkokTime.getTime() + 20 * 60000);
 
     console.log(`[CRON] Checking rounds between ${minTarget.toLocaleTimeString('th-TH')} and ${maxTarget.toLocaleTimeString('th-TH')}`);
 
@@ -66,9 +67,9 @@ export async function GET() {
     });
 
     if (upcomingRounds.length === 0) {
-      console.log(`[CRON] No rounds found in the 14-16 minute window`);
+      console.log(`[CRON] No rounds found in the 5-20 minute window`);
       return NextResponse.json({ 
-        message: "No rounds starting in 15 mins",
+        message: "No rounds starting in 5-20 mins",
         debug: {
           currentTime: bangkokTime.toISOString(),
           windowStart: minTarget.toISOString(),

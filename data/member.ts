@@ -19,7 +19,7 @@ export const TIME_SLOTS: Record<string, TimeSlot[]> = {
     { id: "R2", label: "Round 2", time: "13:30-15:00", closeTime: "14:45" },
     { id: "R3", label: "Round 3", time: "15:00-16:30", closeTime: "16:15" },
     { id: "R4", label: "Round 4", time: "16:30-18:00", closeTime: "17:45" },
-    { id: "SP", label: "Special", time: "22:00-22:59", closeTime: "19:05" },
+    { id: "SP", label: "Special", time: "19:00-21:00", closeTime: "19:05" },
   ],
   "2025-12-27": [
     { id: "R1", label: "Round 1", time: "11:00-12:30", closeTime: "12:15" },

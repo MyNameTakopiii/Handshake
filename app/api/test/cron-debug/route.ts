@@ -12,9 +12,9 @@ export async function GET() {
     const currentDay = String(bangkokTime.getDate()).padStart(2, '0');
     const currentDateStr = `${currentYear}-${currentMonth}-${currentDay}`;
 
-    // Calculate time windows
-    const minTarget = new Date(bangkokTime.getTime() + 14 * 60000);
-    const maxTarget = new Date(bangkokTime.getTime() + 16 * 60000);
+    // Calculate time windows (same as cron job)
+    const minTarget = new Date(bangkokTime.getTime() + 5 * 60000);
+    const maxTarget = new Date(bangkokTime.getTime() + 20 * 60000);
 
     const slotsToday = TIME_SLOTS[currentDateStr];
     

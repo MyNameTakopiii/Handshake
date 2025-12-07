@@ -276,65 +276,6 @@ export default function Home() {
     alert("คัดลอกรายการเรียบร้อย! อวดเพื่อนได้เลย 🎉");
   };
 
-  const handleSaveImage = async () => {
-    try {
-      // Check if browser supports screen capture
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-        alert("เบราว์เซอร์ของคุณไม่รองรับการ capture หน้าจอ");
-        return;
-      }
-
-      // Request screen capture
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-      });
-
-      // Create video element to capture frame
-      const video = document.createElement("video");
-      video.srcObject = stream;
-      video.play();
-
-      // Wait for video to be ready
-      await new Promise((resolve) => {
-        video.onloadedmetadata = resolve;
-      });
-
-      // Create canvas and capture frame
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-
-      if (ctx) {
-        ctx.drawImage(video, 0, 0);
-
-        // Stop all tracks
-        stream.getTracks().forEach((track) => track.stop());
-
-        // Convert to blob and download
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.download = `handshake-plan-${new Date().toISOString().split("T")[0]
-              }.png`;
-            link.href = url;
-            link.click();
-            URL.revokeObjectURL(url);
-            alert("✅ บันทึกรูปภาพสำเร็จ!");
-          }
-        }, "image/png");
-      }
-    } catch (err) {
-      if ((err as Error).name === "NotAllowedError") {
-        alert("คุณยกเลิกการ capture หน้าจอ");
-      } else {
-        console.error("Failed to capture screen:", err);
-        alert(`เกิดข้อผิดพลาด: ${(err as Error).message}`);
-      }
-    }
-  };
-
   if (!isClient) return null;
 
   return (
@@ -751,16 +692,6 @@ export default function Home() {
             </div>
           </div>
           <div className="flex gap-2">
-            {session && (
-              <button
-                className="flex items-center gap-2 bg-purple-600 text-white px-3 sm:px-4 py-2 sm:py-3 rounded-xl hover:bg-purple-700 shadow-lg active:scale-95 transition-all text-sm sm:text-base"
-                onClick={() => (window.location.href = "/admin/cron-setup")}
-                title="ตั้งค่าการแจ้งเตือน"
-              >
-                <span className="hidden sm:inline">⏰</span>
-                <span className="text-xs sm:text-sm font-semibold">Setup</span>
-              </button>
-            )}
             <button
               className="flex items-center gap-2 bg-gray-900 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl hover:bg-gray-800 shadow-lg active:scale-95 transition-all text-sm sm:text-base"
               onClick={() => setShowSummaryModal(true)}
@@ -927,16 +858,6 @@ export default function Home() {
                   className="no-capture flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 px-3 sm:px-4 py-2 rounded-lg hover:bg-gray-100 text-xs sm:text-sm font-semibold shadow-sm"
                 >
                   <Copy size={14} className="sm:w-4 sm:h-4" /> คัดลอก
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleSaveImage();
-                  }}
-                  className="no-capture flex-1 sm:flex-none flex items-center justify-center gap-2 bg-pink-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-pink-600 text-xs sm:text-sm font-semibold shadow-sm"
-                >
-                  <Save size={14} className="sm:w-4 sm:h-4" /> บันทึกรูป
                 </button>
                 <button
                   onClick={() => setShowSummaryModal(false)}

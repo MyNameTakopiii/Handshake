@@ -50,18 +50,18 @@ export interface Member {
 
 export const MEMBERS: Member[] = [
   // ================= BNK48 (TCA Event - 7 Dec) =================
-  { name: "Galeya", group: "BNK48", generation: "5", image: "/images/galeya.jpg", dates: { "2025-12-07": { R2: true, R4: true, SP: true } } },
-  { name: "Grace", group: "BNK48", generation: "3", image: "/images/grace.jpg", dates: { "2025-12-07": { R1: true, R2: true, SP: true } } },
-  { name: "Hoop", group: "BNK48", generation: "3", image: "/images/hoop.jpg", dates: { "2025-12-07": { R1: true, R2: true, R4: true, SP: true } } },
-  { name: "Jew", group: "BNK48", generation: "5", image: "/images/jew.jpg", dates: { "2025-12-07": { R1: true, R3: true, SP: true } } },
-  { name: "Nall", group: "BNK48", generation: "5", image: "/images/nall.jpg", dates: { "2025-12-07": { R2: true, R4: true, SP: true } } },
-  { name: "Niya", group: "BNK48", generation: "5", image: "/images/niya.jpg", dates: { "2025-12-07": { R1: true, R3: true, R4: true, SP: true } } },
+  { name: "Galeya", group: "BNK48", generation: "5", image: "/images/galeya.jpg", dates: { "2025-12-07": { R2: "3", R4: "3", SP: " " } } },
+  { name: "Grace", group: "BNK48", generation: "3", image: "/images/grace.jpg", dates: { "2025-12-07": { R1: "3", R2: "2", SP: "3" } } },
+  { name: "Hoop", group: "BNK48", generation: "3", image: "/images/hoop.jpg", dates: { "2025-12-07": { R1: "1", R2: "1", R4: "1", SP: "1" } } },
+  { name: "Jew", group: "BNK48", generation: "5", image: "/images/jew.jpg", dates: { "2025-12-07": { R1: "4", R3: "4", SP: "4" } } },
+  { name: "Nall", group: "BNK48", generation: "5", image: "/images/nall.jpg", dates: { "2025-12-07": { R2: "4", R4: "4", SP: " " } } },
+  { name: "Niya", group: "BNK48", generation: "5", image: "/images/niya.jpg", dates: { "2025-12-07": { R1: "2", R3: "2", R4: "2", SP: "2" } } },
 
   // ================= CGM48 Special Round (6 Dec) =================
-  { name: "Jingjing", group: "CGM48", generation: "2", image: "/images/jingjing.jpg", dates: { "2025-12-06": { R1: "1", R3: "1", R4: "1", SP: true } } },
-  { name: "Lookked", group: "CGM48", generation: "2", image: "/images/lookked.jpg", dates: { "2025-12-06": { R1: "2", R3: "2", R4: "2", SP: true } } },
-  { name: "Nana", group: "CGM48", generation: "2", image: "/images/nana.jpg", dates: { "2025-12-06": { R1: "3", R2: "3", R4: "3", SP: true } } },
-  { name: "Ploen", group: "CGM48", generation: "3", image: "/images/ploen.jpg", dates: { "2025-12-06": { R1: "4", R2: "4", R4: "4", SP: true } } },
+  { name: "Jingjing", group: "CGM48", generation: "2", image: "/images/jingjing.jpg", dates: { "2025-12-06": { R1: "1", R3: "1", R4: "1", SP: "1" } } },
+  { name: "Lookked", group: "CGM48", generation: "2", image: "/images/lookked.jpg", dates: { "2025-12-06": { R1: "2", R3: "2", R4: "2", SP: "2" } } },
+  { name: "Nana", group: "CGM48", generation: "2", image: "/images/nana.jpg", dates: { "2025-12-06": { R1: "3", R2: "3", R4: "3", SP: "3" } } },
+  { name: "Ploen", group: "CGM48", generation: "3", image: "/images/ploen.jpg", dates: { "2025-12-06": { R1: "4", R2: "4", R4: "4", SP: "4" } } },
 
   // ================= BNK48 Handshake Event (27-28 Dec) [Arlee -> Yoghurt] =================
   { name: "Arlee", group: "BNK48", generation: "5", image: "/images/arlee.jpg", dates: { "2025-12-27": { R1: true, R3: true, SP: true }, "2025-12-28": { R1: true, R3: true, R5: true } } },

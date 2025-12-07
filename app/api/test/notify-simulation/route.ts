@@ -61,8 +61,8 @@ export async function POST(request: Request) {
       
       items.forEach((item: any) => {
         message += `\n${item.name}\n`;
-        message += `\n${item.roundLabel} (${item.roundTime})\n`;
-        message += `\n${item.count} ใบ\n`;
+        message += `${item.roundLabel} (${item.roundTime})`;
+        message += `จำนวน ${item.count} ใบ\n`;
       });
     });
     

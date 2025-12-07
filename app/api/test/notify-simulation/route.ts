@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       items.forEach((item: any) => {
         message += `\n${item.name}\n`;
         message += `${item.roundLabel} (${item.roundTime})`;
-        message += `จำนวน ${item.count} ใบ\n`;
+        message += `\nจำนวน ${item.count} ใบ\n`;
       });
     });
     
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     
     message += `\n\nรวมทั้งหมด: ${totalTickets} ใบ`;
 
-    message += `\n━━━━━━━━━━━━━\n อย่าลืมไปกันนะ ถ้าไม่ไป งอนแล้วนะ 😤`;
+    message += `\n━━━━━━━━━━━━━\n อย่าลืมไปกันนะ ถ้าไม่ไปงอนแล้วนะ 😤`;
 
     await client.pushMessage({
       to: user.lineId,

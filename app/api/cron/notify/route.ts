@@ -50,6 +50,9 @@ export async function GET() {
 
     let sentCount = 0;
 
+    // Collect bookings per user (keyed by lineId) so we can send one combined message
+    const messagesPerUser = new Map<string, { userName: string; entries: Array<{ memberName: string; roundLabel: string; roundTime: string; count: number }>} >();
+
     for (const round of upcomingRounds) {
       // Find bookings for this round
       const roundBookings = await db
@@ -67,22 +70,72 @@ export async function GET() {
         );
 
       for (const { booking, user } of roundBookings) {
-        if (user.lineId) {
-          try {
-            await client.pushMessage({
-              to: user.lineId,
-              messages: [
-                {
-                  type: "text",
-                  text: `🔔 แจ้งเตือน: ${round.label} กำลังจะเริ่มใน 15 นาที!\n\nเมมเบอร์: ${booking.memberName}\nเวลา: ${round.time}\nจำนวน: ${booking.count} ใบ\n\nรีบไปเข้าแถวนะครับ!`,
-                },
-              ],
-            });
-            sentCount++;
-          } catch (error) {
-            console.error(`Failed to send LINE message to ${user.lineId}:`, error);
-          }
+        if (!user.lineId) continue;
+
+        const key = user.lineId;
+        const existing = messagesPerUser.get(key);
+        const entry = {
+          memberName: booking.memberName,
+          roundLabel: round.label,
+          roundTime: round.time,
+          count: booking.count,
+        };
+
+        if (!existing) {
+          messagesPerUser.set(key, { userName: user.name || "", entries: [entry] });
+        } else {
+          existing.entries.push(entry);
         }
+      }
+    }
+
+    // Helper: format Thai date like "วันเสาร์ที่ 27 ธันวาคม 2025"
+    const formatThaiDate = (d: Date) => {
+      try {
+        const fmt = new Intl.DateTimeFormat("th-TH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+        return fmt.format(d);
+      } catch (e) {
+        // fallback
+        return `${currentDateStr}`;
+      }
+    };
+
+    const formattedDate = formatThaiDate(bangkokTime);
+
+    // Send combined messages
+    for (const [lineId, payload] of messagesPerUser.entries()) {
+      const lines: string[] = [];
+      lines.push(`🔔 แจ้งเตือนสำหรับ ${formattedDate}`);
+      lines.push("");
+
+      for (const e of payload.entries) {
+        // Include user name and member name (some users have same values)
+        if (payload.userName) {
+          lines.push(payload.userName);
+        }
+        lines.push(e.memberName);
+        lines.push(`${e.roundLabel} (${e.roundTime})`);
+        lines.push(`${e.count} ใบ`);
+        lines.push("");
+      }
+
+      lines.push("รีบไปเข้าแถวก่อนเวลานะครับ!");
+
+      const messageText = lines.join("\n");
+
+      try {
+        await client.pushMessage({
+          to: lineId,
+          messages: [
+            {
+              type: "text",
+              text: messageText,
+            },
+          ],
+        });
+        sentCount++;
+      } catch (error) {
+        console.error(`Failed to send combined LINE message to ${lineId}:`, error);
       }
     }
 

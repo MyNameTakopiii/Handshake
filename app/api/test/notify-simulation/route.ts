@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     }
 
     // Build detailed message from summary
-    let message = `📝 รายละเอียดที่คุณเลือก\n`;
+    let message = `รายละเอียดที่คุณเลือก\n`;
     
     // Group by date
     Object.entries(summary).forEach(([date, items]: [string, any]) => {
@@ -57,12 +57,12 @@ export async function POST(request: Request) {
         month: 'long',
       });
       
-      message += `\n� ${thaiDate}\n`;
+      message += `\n${thaiDate}\n`;
       
       items.forEach((item: any) => {
-        message += `\n👤 ${item.name}\n`;
-        message += `   ⏰ ${item.roundLabel} (${item.roundTime})\n`;
-        message += `   🎫 ${item.count} ใบ\n`;
+        message += `\n${item.name}\n`;
+        message += `\n${item.roundLabel} (${item.roundTime})\n`;
+        message += `\n${item.count} ใบ\n`;
       });
     });
     
@@ -74,7 +74,9 @@ export async function POST(request: Request) {
       });
     });
     
-    message += `\n━━━━━━━━━━━━━\n📊 รวมทั้งหมด: ${totalTickets} ใบ`;
+    message += `\n\nรวมทั้งหมด: ${totalTickets} ใบ`;
+
+    message += `\n━━━━━━━━━━━━━\n อย่าลืมไปกันนะ ถ้าไม่ไป งอนแล้วนะ 😤`;
 
     await client.pushMessage({
       to: user.lineId,
